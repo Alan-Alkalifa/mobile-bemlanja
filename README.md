@@ -2,6 +2,24 @@
 
 React Native (Expo) app with Expo Router, NativeWind, and Supabase.
 
+## Features
+
+- Auth flow screens for login, sign up, forgot password, and update password.
+- Product detail page with collapsible long description, organization coupons, image review preview, and native share action.
+- Merchant detail page (`/merchant/[id]`) with share action, organization stats, and product list integration.
+- Merchant product search + filter drawer (category and price range).
+- Cart context with global cart badge, add-to-cart quantity drawer, and stock-aware variant validation.
+
+## Environment
+
+Create `.env` with:
+
+```bash
+EXPO_PUBLIC_APP_URL=<your-public-web-url>
+```
+
+`EXPO_PUBLIC_APP_URL` is used when generating share links for product and merchant pages.
+
 ## Development
 
 1. Install dependencies
