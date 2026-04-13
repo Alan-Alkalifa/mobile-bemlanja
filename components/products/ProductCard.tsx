@@ -62,6 +62,17 @@ export function ProductCard({ product }: ProductCardProps) {
         <Text className="text-primary font-black text-sm mt-1">
           {formattedPrice}
         </Text>
+        {typeof product.avgRating === 'number' && (product.reviewCount || 0) > 0 && (
+          <View className="flex-row items-center gap-1 mt-1">
+            <Ionicons name="star" size={12} color="#f59e0b" />
+            <Text className="text-foreground text-xs font-semibold">
+              {product.avgRating.toFixed(1)}
+            </Text>
+            <Text className="text-muted-foreground text-[10px]">
+              ({product.reviewCount})
+            </Text>
+          </View>
+        )}
       </View>
     </TouchableOpacity>
   );

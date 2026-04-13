@@ -3,6 +3,7 @@ import React, { ReactElement } from 'react';
 import { ActivityIndicator, FlatList, Text, TouchableOpacity, View } from 'react-native';
 import { useOrganizationProducts } from '../../hooks/useOrganizationProducts';
 import { Skeleton } from '../ui/Skeleton';
+import { OrganizationProductFilters } from './OrganizationProductFilters';
 import { ProductCard } from './ProductCard';
 
 interface OrganizationProductsSectionProps {
@@ -18,7 +19,18 @@ export function OrganizationProductsSection({
   pageSize = 8,
   listHeaderComponent,
 }: OrganizationProductsSectionProps) {
-  const { products, loading, loadingMore, error, loadMore, refresh } = useOrganizationProducts({
+  const {
+    products,
+    loading,
+    loadingMore,
+    error,
+    loadMore,
+    refresh,
+    categories,
+    filters,
+    applyFilters,
+    resetFilters,
+  } = useOrganizationProducts({
     orgId,
     pageSize,
   });
@@ -28,6 +40,12 @@ export function OrganizationProductsSection({
   const sectionHeader = (
     <View>
       {listHeaderComponent}
+      <OrganizationProductFilters
+        categories={categories}
+        filters={filters}
+        onApplyFilters={applyFilters}
+        onResetFilters={resetFilters}
+      />
       {!!title && <Text className="text-foreground font-bold text-lg mt-6 mb-3 px-5">{title}</Text>}
     </View>
   );
@@ -82,6 +100,8 @@ export function OrganizationProductsSection({
       keyExtractor={(item) => item.productId}
       renderItem={({ item }) => <ProductCard product={item} />}
       numColumns={2}
+      keyboardShouldPersistTaps="handled"
+      keyboardDismissMode="on-drag"
       columnWrapperStyle={{ justifyContent: 'space-between', paddingHorizontal: 20 }}
       ListHeaderComponent={sectionHeader}
       ListEmptyComponent={

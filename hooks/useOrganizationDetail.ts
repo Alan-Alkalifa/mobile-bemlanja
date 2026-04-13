@@ -18,6 +18,8 @@ export interface OrganizationDetail {
   status: string;
   orgEmail: string;
   orgEmailVerified: boolean;
+  totalProducts: number;
+  avgProductRating: number | null;
 }
 
 export function useOrganizationDetail(id?: string) {
@@ -35,14 +37,33 @@ export function useOrganizationDetail(id?: string) {
     setLoading(true);
     setError(null);
     try {
-      const { data, error: fetchError } = await supabase
-        .from('organizations')
-        .select('*')
-        .eq('orgId', id)
-        .maybeSingle();
+      const [{ data, error: fetchError }, { count: totalProducts }, { data: orgProductsWithReviews }] =
+        await Promise.all([
+          supabase.from('organizations').select('*').eq('orgId', id).maybeSingle(),
+          supabase
+            .from('products')
+            .select('productId', { count: 'exact', head: true })
+            .eq('orgId', id)
+            .eq('is_active', true),
+          supabase
+            .from('products')
+            .select('product_reviews ( rating )')
+            .eq('orgId', id)
+            .eq('is_active', true),
+        ]);
 
       if (fetchError) throw fetchError;
       if (!data) throw new Error('Organization not found');
+
+      const ratings = (orgProductsWithReviews ?? []).flatMap((product: any) =>
+        (product.product_reviews ?? [])
+          .map((review: { rating: number }) => Number(review.rating))
+          .filter((rating: number) => Number.isFinite(rating))
+      );
+      const avgProductRating =
+        ratings.length > 0
+          ? Number((ratings.reduce((sum: number, rating: number) => sum + rating, 0) / ratings.length).toFixed(1))
+          : null;
 
       setOrganization({
         orgId: String(data.orgId ?? id),
@@ -60,6 +81,8 @@ export function useOrganizationDetail(id?: string) {
         status: data.status || '',
         orgEmail: data.orgEmail || data.org_email || '',
         orgEmailVerified: Boolean(data.orgEmailVerified ?? data.org_email_verified ?? false),
+        totalProducts: totalProducts ?? 0,
+        avgProductRating,
       });
     } catch (err: any) {
       setError(err.message || 'Failed to load organization');

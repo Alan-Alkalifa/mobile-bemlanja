@@ -9,6 +9,8 @@ export interface Product {
   createdAt: string;
   updatedAt: string;
   deletedAt: string | null;
+  avgRating?: number | null;
+  reviewCount?: number;
 }
 
 export interface ProductImage {

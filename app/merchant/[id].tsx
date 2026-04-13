@@ -3,12 +3,13 @@ import { Image } from 'expo-image';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useColorScheme } from 'nativewind';
 import React, { useMemo } from 'react';
-import { Platform, Text, TouchableOpacity, View } from 'react-native';
+import { Alert, Platform, Share, Text, TouchableOpacity, View } from 'react-native';
 import { OrganizationProductsSection } from '../../components/products/OrganizationProductsSection';
 import { Skeleton } from '../../components/ui/Skeleton';
 import { useOrganizationDetail } from '../../hooks/useOrganizationDetail';
 
 const HEADER_HEIGHT = 260;
+const APP_BASE_URL = (process.env.EXPO_PUBLIC_APP_URL ?? 'https://bemlanja.com').replace(/\/+$/, '');
 
 export default function OrganizationDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -51,6 +52,26 @@ export default function OrganizationDetailScreen() {
           },
     [colorScheme]
   );
+
+  const handleShareOrganization = async () => {
+    if (!organization) return;
+
+    try {
+      const shareUrl = `${APP_BASE_URL}/merchant/${encodeURIComponent(organization.orgId)}`;
+      await Share.share(
+        {
+          title: organization.orgName,
+          message: `${organization.orgName}\n${shareUrl}`,
+          url: shareUrl,
+        },
+        {
+          dialogTitle: `Share ${organization.orgName}`,
+        }
+      );
+    } catch {
+      Alert.alert('Unable to share', 'Please try again in a moment.');
+    }
+  };
 
   if (loading) {
     return (
@@ -100,13 +121,22 @@ export default function OrganizationDetailScreen() {
         className="absolute top-0 left-0 right-0 z-20 px-4 pt-12 pb-4"
         style={Platform.OS === 'ios' ? { paddingTop: 60 } : {}}
       >
-        <TouchableOpacity
-          onPress={() => router.back()}
-          activeOpacity={0.9}
-          className="self-start bg-background/80 w-11 h-11 items-center justify-center rounded-full border border-border"
-        >
-          <Ionicons name="chevron-back" size={24} color={palette.foreground} />
-        </TouchableOpacity>
+        <View className="flex-row items-center justify-between">
+          <TouchableOpacity
+            onPress={() => router.back()}
+            activeOpacity={0.9}
+            className="bg-background/80 w-11 h-11 items-center justify-center rounded-full border border-border"
+          >
+            <Ionicons name="chevron-back" size={24} color={palette.foreground} />
+          </TouchableOpacity>
+          <TouchableOpacity
+            onPress={handleShareOrganization}
+            activeOpacity={0.9}
+            className="bg-background/80 w-11 h-11 items-center justify-center rounded-full border border-border"
+          >
+            <Ionicons name="share-outline" size={20} color={palette.foreground} />
+          </TouchableOpacity>
+        </View>
       </View>
 
       <OrganizationProductsSection
@@ -179,10 +209,26 @@ export default function OrganizationDetailScreen() {
                 <Text className="text-muted-foreground text-sm">{locationLine}</Text>
               </View>
             )}
+            <View className="flex-row items-center gap-4">
+              <View className="flex-row items-center gap-1.5">
+                <Ionicons name="cube-outline" size={16} color={palette.mutedForeground} />
+                <Text className="text-muted-foreground text-sm">
+                  {organization.totalProducts} products
+                </Text>
+              </View>
+              <View className="flex-row items-center gap-1.5">
+                <Ionicons name="star" size={16} color={palette.warning} />
+                <Text className="text-muted-foreground text-sm">
+                  {typeof organization.avgProductRating === 'number'
+                    ? organization.avgProductRating.toFixed(1)
+                    : '-'}
+                </Text>
+              </View>
+            </View>
           </View>
 
           <View className="mt-6 border border-border rounded-2xl bg-muted/30 p-4">
-            <Text className="text-foreground font-bold text-lg mb-2">About organization</Text>
+            <Text className="text-foreground font-bold text-lg">About Merchant</Text>
             <Text className="text-muted-foreground text-base leading-6">{organization.description}</Text>
           </View>
         </View>

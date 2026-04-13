@@ -29,14 +29,35 @@ export function useProducts() {
     try {
       const { data, error: fetchError, count } = await supabase
         .from('products')
-        .select('*', { count: 'exact' })
+        .select(
+          `
+            *,
+            product_reviews ( rating )
+          `,
+          { count: 'exact' }
+        )
         .eq('is_active', true)
         .order('createdAt', { ascending: false })
         .range(from, to);
 
       if (fetchError) throw fetchError;
 
-      const newProducts = data || [];
+      const newProducts = (data || []).map((item: any) => {
+        const ratings = (item.product_reviews || [])
+          .map((review: { rating: number }) => Number(review.rating))
+          .filter((rating: number) => Number.isFinite(rating));
+        const reviewCount = ratings.length;
+        const avgRating =
+          reviewCount > 0
+            ? Number((ratings.reduce((sum: number, rating: number) => sum + rating, 0) / reviewCount).toFixed(1))
+            : null;
+
+        return {
+          ...item,
+          reviewCount,
+          avgRating,
+        } as Product;
+      });
 
       if (reset) {
         setProducts(newProducts);

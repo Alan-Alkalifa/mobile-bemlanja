@@ -11,6 +11,8 @@ interface ProductOrgCardProps {
   initials: string;
   logoUrl?: string | null;
   iconColor: string;
+  totalProducts?: number | null;
+  avgRating?: number | null;
   onVisitOrg: () => void;
 }
 
@@ -22,6 +24,8 @@ export function ProductOrgCard({
   initials,
   logoUrl,
   iconColor,
+  totalProducts,
+  avgRating,
   onVisitOrg,
 }: ProductOrgCardProps) {
   return (
@@ -64,6 +68,21 @@ export function ProductOrgCard({
               </Text>
             </View>
           ) : null}
+
+          <View className="flex-row items-center gap-3">
+            <View className="flex-row items-center gap-1">
+              <Ionicons name="cube-outline" size={14} color={iconColor} />
+              <Text className="text-muted-foreground text-sm">
+                {typeof totalProducts === 'number' ? `${totalProducts} products` : '- products'}
+              </Text>
+            </View>
+            <View className="flex-row items-center gap-1">
+              <Ionicons name="star" size={14} color="#f59e0b" />
+              <Text className="text-muted-foreground text-sm">
+                {typeof avgRating === 'number' ? avgRating.toFixed(1) : '-'}
+              </Text>
+            </View>
+          </View>
         </View>
       </View>
 

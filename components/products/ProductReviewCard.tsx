@@ -1,7 +1,7 @@
-import React from 'react';
-import { View, Text, ScrollView } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { Image } from 'expo-image';
+import React from 'react';
+import { Modal, Pressable, ScrollView, Text, TouchableOpacity, View } from 'react-native';
 import { ProductReview } from '../../types/product';
 import { getProductImageUrl } from '../../utils/images';
 
@@ -11,6 +11,7 @@ interface ProductReviewCardProps {
 }
 
 export function ProductReviewCard({ review, warningColor }: ProductReviewCardProps) {
+  const [previewImageUrl, setPreviewImageUrl] = React.useState<string | null>(null);
   const date = new Date(review.createdAt).toLocaleDateString('id-ID', {
     day: 'numeric',
     month: 'short',
@@ -18,7 +19,18 @@ export function ProductReviewCard({ review, warningColor }: ProductReviewCardPro
   });
   const reviewImages = review.product_review_images ?? [];
   const reviewerName = review.reviewer_name || 'Satisfied Customer';
-  const reviewerInitial = reviewerName.trim().charAt(0).toUpperCase() || 'U';
+  const maskedReviewerName = reviewerName
+    .trim()
+    .split(/\s+/)
+    .filter(Boolean)
+    .map((word) => {
+      const normalized = word.toLowerCase();
+      if (normalized.length <= 1) return normalized;
+      if (normalized.length === 2) return `${normalized[0]}*`;
+      return `${normalized[0]}${'*'.repeat(normalized.length - 2)}${normalized[normalized.length - 1]}`;
+    })
+    .join(' ');
+  const avatarInitial = reviewerName.trim().charAt(0).toUpperCase() || 'U';
 
   return (
     <View className="bg-muted/40 border border-border/50 rounded-2xl p-5 gap-3">
@@ -33,12 +45,12 @@ export function ProductReviewCard({ review, warningColor }: ProductReviewCardPro
                 transition={200}
               />
             ) : (
-              <Text className="text-foreground font-semibold text-xs">{reviewerInitial}</Text>
+              <Text className="text-foreground font-semibold text-xs">{avatarInitial}</Text>
             )}
           </View>
           <View className="gap-1 flex-1">
             <Text className="text-foreground font-bold text-sm" numberOfLines={1}>
-              {reviewerName}
+              {maskedReviewerName}
             </Text>
             <View className="flex-row gap-0.5">
               {[1, 2, 3, 4, 5].map((star) => (
@@ -63,17 +75,49 @@ export function ProductReviewCard({ review, warningColor }: ProductReviewCardPro
         <ScrollView horizontal showsHorizontalScrollIndicator={false}>
           <View className="flex-row gap-2">
             {reviewImages.map((image) => (
-              <Image
+              <TouchableOpacity
                 key={image.imageId}
-                source={{ uri: getProductImageUrl(image.url) }}
-                style={{ width: 72, height: 72, borderRadius: 12 }}
-                contentFit="cover"
-                transition={200}
-              />
+                activeOpacity={0.85}
+                onPress={() => setPreviewImageUrl(getProductImageUrl(image.url))}
+              >
+                <Image
+                  source={{ uri: getProductImageUrl(image.url) }}
+                  style={{ width: 72, height: 72, borderRadius: 12 }}
+                  contentFit="cover"
+                  transition={200}
+                />
+              </TouchableOpacity>
             ))}
           </View>
         </ScrollView>
       )}
+
+      <Modal
+        visible={Boolean(previewImageUrl)}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setPreviewImageUrl(null)}
+      >
+        <View className="flex-1 bg-black/90">
+          <Pressable className="flex-1 items-center justify-center px-5" onPress={() => setPreviewImageUrl(null)}>
+            {previewImageUrl ? (
+              <Image
+                source={{ uri: previewImageUrl }}
+                style={{ width: '100%', height: '70%' }}
+                contentFit="contain"
+                transition={200}
+              />
+            ) : null}
+          </Pressable>
+          {/* <TouchableOpacity
+            className="absolute top-14 right-5 w-10 h-10 rounded-full bg-white/20 items-center justify-center"
+            onPress={() => setPreviewImageUrl(null)}
+            activeOpacity={0.8}
+          >
+            <Ionicons name="close" size={22} color="#ffffff" />
+          </TouchableOpacity> */}
+        </View>
+      </Modal>
     </View>
   );
 }

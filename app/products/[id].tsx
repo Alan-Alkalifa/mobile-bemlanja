@@ -2,58 +2,61 @@ import { Ionicons } from '@expo/vector-icons';
 import { Image } from 'expo-image';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useColorScheme } from 'nativewind';
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   Alert,
   Dimensions,
   FlatList,
+  Keyboard,
   Platform,
   ScrollView,
+  Share,
   Text,
+  TextInput,
   TouchableOpacity,
   View,
 } from 'react-native';
-import { ProductReviewCard } from '../../components/products/ProductReviewCard';
-import { ProductOrgCard } from '../../components/products/ProductOrgCard';
+import { CartIconButton } from '../../components/cart/CartIconButton';
 import { OrganizationCouponsSection } from '../../components/products/OrganizationCouponsSection';
+import { ProductOrgCard } from '../../components/products/ProductOrgCard';
+import { ProductReviewCard } from '../../components/products/ProductReviewCard';
 import { Skeleton } from '../../components/ui/Skeleton';
-import { OrganizationCoupon, ProductDetail, ProductReview, ProductVariant } from '../../types/product';
+import { useAuth } from '../../contexts/AuthProvider';
+import { useCart } from '../../contexts/CartProvider';
+import { useProductDetail } from '../../hooks/useProductDetail';
 import { getProductImageUrl } from '../../utils/images';
 import { supabase } from '../../utils/supabase';
 
 const { width } = Dimensions.get('window');
 const IMAGE_HEIGHT = 420;
 const DESCRIPTION_WORD_LIMIT = 100;
-
-interface OrganizationInfo {
-  orgId: string;
-  slug: string;
-  name: string;
-  subtitle: string;
-  location: string;
-  isOfficial: boolean;
-  logoUrl: string;
-}
-
-const toSlug = (value: string) =>
-  value
-    .toLowerCase()
-    .trim()
-    .replace(/[^a-z0-9]+/g, '-')
-    .replace(/^-+|-+$/g, '');
+const APP_BASE_URL = (process.env.EXPO_PUBLIC_APP_URL ?? 'https://bemlanja.com').replace(/\/+$/, '');
 
 export default function ProductDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
-  const [product, setProduct] = useState<ProductDetail | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [selectedVariant, setSelectedVariant] = useState<ProductVariant | null>(null);
+  const {
+    product,
+    loading,
+    error,
+    fetchProduct,
+    selectedVariant,
+    setSelectedVariant,
+    organization,
+    organizationStats,
+    organizationCoupons,
+  } = useProductDetail(id);
   const [activeImageIndex, setActiveImageIndex] = useState(0);
   const [visibleReviewCount, setVisibleReviewCount] = useState(3);
   const [isDescriptionExpanded, setIsDescriptionExpanded] = useState(false);
-  const [organization, setOrganization] = useState<OrganizationInfo | null>(null);
-  const [organizationCoupons, setOrganizationCoupons] = useState<OrganizationCoupon[]>([]);
+  const [isQuantityDrawerVisible, setIsQuantityDrawerVisible] = useState(false);
+  const [quantityInput, setQuantityInput] = useState('1');
+  const [draftVariantId, setDraftVariantId] = useState<string | null>(null);
+  const [focusedVariantId, setFocusedVariantId] = useState<string | null>(null);
+  const [variantCartQuantities, setVariantCartQuantities] = useState<Record<string, number>>({});
+  const [isKeyboardVisible, setIsKeyboardVisible] = useState(false);
+  const { cartCount, addToCart, isAddingToCart } = useCart();
+  const { user } = useAuth();
   const { colorScheme } = useColorScheme();
   const palette =
     colorScheme === 'dark'
@@ -79,161 +82,6 @@ export default function ProductDetailScreen() {
           error: '#ef4444',
           warning: '#f59e0b',
         };
-
-  const fetchProduct = useCallback(async () => {
-    setLoading(true);
-    setError(null);
-    try {
-      const { data, error: fetchError } = await supabase
-        .from('products')
-        .select(`
-          *,
-          product_images ( imageId, url, sort_order ),
-          product_variants ( variantId, name, price, stock, weight_grams ),
-          product_reviews (
-            reviewId,
-            userId,
-            rating,
-            body,
-            createdAt,
-            product_review_images ( imageId, reviewId, url, createdAt )
-          )
-        `)
-        .eq('productId', id)
-        .single();
-
-      if (fetchError) throw fetchError;
-      const rawReviews = (data?.product_reviews ?? []) as ProductReview[];
-      const reviewerIds = [...new Set(rawReviews.map((review) => review.userId).filter(Boolean))];
-      let reviewerMap = new Map<string, { name: string; avatarUrl: string | null }>();
-
-      if (reviewerIds.length > 0) {
-        const { data: reviewerProfiles } = await supabase
-          .from('profiles')
-          .select('userId, full_name, avatar_url')
-          .in('userId', reviewerIds);
-
-        reviewerMap = new Map(
-          (reviewerProfiles ?? []).map((profile: any) => [
-            profile.userId,
-            {
-              name: profile.full_name || 'Satisfied Customer',
-              avatarUrl: profile.avatar_url || null,
-            },
-          ])
-        );
-      }
-
-      const enrichedReviews = rawReviews.map((review) => {
-        const reviewer = reviewerMap.get(review.userId);
-        return {
-          ...review,
-          reviewer_name: reviewer?.name || 'Satisfied Customer',
-          reviewer_avatar_url: reviewer?.avatarUrl || null,
-        };
-      });
-
-      setProduct({
-        ...(data as ProductDetail),
-        product_reviews: enrichedReviews,
-      });
-      const orgIdFromProduct = data?.orgId;
-      if (orgIdFromProduct) {
-        const nowIso = new Date().toISOString();
-        const { data: couponData } = await supabase
-          .from('coupons')
-          .select(
-            'couponId, orgId, code, discount_type, discount_value, min_purchase, max_uses, used_count, expires_at, is_active'
-          )
-          .eq('orgId', orgIdFromProduct)
-          .eq('is_active', true)
-          .order('createdAt', { ascending: false });
-
-        const validCoupons = (couponData ?? []).filter((coupon: OrganizationCoupon) => {
-          const notExpired = !coupon.expires_at || coupon.expires_at >= nowIso;
-          const hasRemainingQuota =
-            coupon.max_uses === null || coupon.used_count < Number(coupon.max_uses);
-          return notExpired && hasRemainingQuota;
-        });
-        setOrganizationCoupons(validCoupons);
-
-        const { data: orgData } = await supabase
-          .from('organizations')
-          .select('*')
-          .eq('orgId', orgIdFromProduct)
-          .maybeSingle();
-
-        if (orgData) {
-          const orgName =
-            orgData.orgName ||
-            orgData.org_name ||
-            orgData.organization_name ||
-            orgData.name ||
-            `Org ${orgIdFromProduct}`;
-          const orgSubtitle =
-            orgData.label ||
-            orgData.description ||
-            orgData.tagline ||
-            orgData.short_description ||
-            'Trusted partner store';
-          const orgLocation =
-            [orgData.city_name, orgData.province_name].filter(Boolean).join(', ') ||
-            orgData.city ||
-            orgData.regency ||
-            orgData.location ||
-            orgData.address_city ||
-            orgData.address ||
-            '';
-          const orgIsOfficial = Boolean(
-            orgData.orgEmailVerified ??
-              orgData.org_email_verified ??
-              orgData.is_official_store ??
-              orgData.isOfficialStore ??
-              orgData.is_official ??
-              false
-          );
-          const logoUrl = orgData.logoUrl || orgData.logo_url || '';
-          const orgSlug =
-            orgData.slug ||
-            orgData.orgSlug ||
-            orgData.org_slug ||
-            toSlug(orgName) ||
-            String(orgIdFromProduct);
-
-          setOrganization({
-            orgId: String(orgIdFromProduct),
-            slug: String(orgSlug),
-            name: orgName,
-            subtitle: orgSubtitle,
-            location: orgLocation,
-            isOfficial: orgIsOfficial,
-            logoUrl,
-          });
-        } else {
-          setOrganization(null);
-        }
-      } else {
-        setOrganization(null);
-        setOrganizationCoupons([]);
-      }
-      setVisibleReviewCount(3);
-      setIsDescriptionExpanded(false);
-      if (data?.product_variants?.length > 0) {
-        const firstInStock = data.product_variants.find(
-          (variant: ProductVariant) => variant.stock > 0
-        );
-        setSelectedVariant(firstInStock || data.product_variants[0]);
-      }
-    } catch (err: any) {
-      setError(err.message || 'Failed to load product');
-    } finally {
-      setLoading(false);
-    }
-  }, [id]);
-
-  useEffect(() => {
-    fetchProduct();
-  }, [fetchProduct]);
 
   const formattedPrice = (price: string | number) =>
     new Intl.NumberFormat('id-ID', {
@@ -266,6 +114,14 @@ export default function ProductDetailScreen() {
     : productDescription;
   const displayDescription =
     isDescriptionExpanded || !isLongDescription ? productDescription : collapsedDescription;
+  const focusedVariant =
+    product?.product_variants.find((variant) => variant.variantId === focusedVariantId) ||
+    selectedVariant ||
+    product?.product_variants[0] ||
+    null;
+  const hasVariants = (product?.product_variants?.length || 0) > 0;
+  const noVariantStock =
+    !hasVariants || !product?.product_variants.some((variant) => variant.stock > 0);
   const orgId = String(product?.orgId ?? 'Unknown');
   const orgName = organization?.name || `Organization ${orgId}`;
   const orgSubtitle = organization?.subtitle || 'Trusted partner store';
@@ -279,12 +135,137 @@ export default function ProductDetailScreen() {
     .map((word) => word[0]?.toUpperCase() || '')
     .join('') || 'OR';
 
+  useEffect(() => {
+    setVisibleReviewCount(3);
+    setIsDescriptionExpanded(false);
+    setActiveImageIndex(0);
+  }, [product?.productId]);
+
+  useEffect(() => {
+    setFocusedVariantId(selectedVariant?.variantId ?? product?.product_variants?.[0]?.variantId ?? null);
+  }, [product?.productId, selectedVariant?.variantId]);
+
+  useEffect(() => {
+    const fetchVariantCartQuantities = async () => {
+      if (!user?.id || !product?.productId) {
+        setVariantCartQuantities({});
+        return;
+      }
+
+      const { data } = await supabase
+        .from('cart_items')
+        .select('variantId, quantity')
+        .eq('userId', user.id)
+        .eq('productId', product.productId);
+
+      const next: Record<string, number> = {};
+      (data ?? []).forEach((row) => {
+        if (row.variantId) {
+          next[String(row.variantId)] = Number(row.quantity || 0);
+        }
+      });
+      setVariantCartQuantities(next);
+    };
+
+    fetchVariantCartQuantities();
+  }, [product?.productId, user?.id, cartCount]);
+
+  useEffect(() => {
+    const showSub = Keyboard.addListener('keyboardDidShow', () => setIsKeyboardVisible(true));
+    const hideSub = Keyboard.addListener('keyboardDidHide', () => setIsKeyboardVisible(false));
+
+    return () => {
+      showSub.remove();
+      hideSub.remove();
+    };
+  }, []);
+
   const handleVisitOrg = () => {
-    router.push(`/organizations/${encodeURIComponent(orgId)}` as never);
+    router.push(`/merchant/${encodeURIComponent(orgId)}` as never);
   };
 
   const handleChatOrg = () => {
     Alert.alert('Chat', `Chat with organization ${orgId} is coming soon.`);
+  };
+
+  const handleAddToCart = async () => {
+    if (!product) return;
+    const initialVariant =
+      selectedVariant ||
+      product.product_variants.find((variant) => variant.stock > 0) ||
+      product.product_variants[0] ||
+      null;
+    setDraftVariantId(initialVariant?.variantId ?? null);
+    setQuantityInput('1');
+    setIsQuantityDrawerVisible(true);
+  };
+
+  const handleCloseQuantityDrawer = () => {
+    if (isKeyboardVisible) {
+      Keyboard.dismiss();
+      return;
+    }
+    setIsQuantityDrawerVisible(false);
+  };
+
+  const handleConfirmAddToCart = async () => {
+    if (!product) return;
+
+    const drawerVariant =
+      product.product_variants.find((variant) => variant.variantId === draftVariantId) || null;
+    if (product.product_variants.length > 0 && !drawerVariant) {
+      Alert.alert('Select variant', 'Please select a variant before adding this product.');
+      return;
+    }
+    if (drawerVariant && drawerVariant.stock <= 0) {
+      Alert.alert('Out of stock', 'This variant is currently out of stock.');
+      return;
+    }
+
+    const requestedQuantity = Number.parseInt(quantityInput, 10);
+    if (!Number.isFinite(requestedQuantity) || requestedQuantity <= 0) {
+      Alert.alert('Invalid quantity', 'Please enter a valid quantity.');
+      return;
+    }
+
+    const result = await addToCart({
+      productId: product.productId,
+      variantId: drawerVariant?.variantId ?? null,
+      quantity: requestedQuantity,
+      maxStock: drawerVariant?.stock ?? null,
+      productName: product.name,
+    });
+
+    if (!result.ok) {
+      Alert.alert('Failed to add to cart', result.message);
+      return;
+    }
+
+    setIsQuantityDrawerVisible(false);
+    if (drawerVariant) {
+      setSelectedVariant(drawerVariant);
+    }
+    Alert.alert('Added to cart', result.message);
+  };
+
+  const handleShareProduct = async () => {
+    if (!product) return;
+
+    try {
+      const shareUrl = `${APP_BASE_URL}/products/${encodeURIComponent(String(product.productId))}`;
+      await Share.share(
+        {
+          title: product.name,
+          message: `${product.name}\n${shareUrl}`,
+          url: shareUrl,
+        },
+        {
+          dialogTitle: `Share ${product.name}`,
+        }
+      );
+    } catch {
+      Alert.alert('Unable to share', 'Please try again in a moment.');
+    }
   };
 
   if (loading) {
@@ -364,11 +345,12 @@ export default function ProductDetailScreen() {
           </TouchableOpacity>
           
           <View className="flex-row gap-3">
-            <TouchableOpacity className="bg-background/80 w-11 h-11 items-center justify-center rounded-full border border-border shadow-sm">
+            <TouchableOpacity
+              onPress={handleShareProduct}
+              activeOpacity={0.9}
+              className="bg-background/80 w-11 h-11 items-center justify-center rounded-full border border-border shadow-sm"
+            >
               <Ionicons name="share-outline" size={20} color={palette.foreground} />
-            </TouchableOpacity>
-            <TouchableOpacity className="bg-background/80 w-11 h-11 items-center justify-center rounded-full border border-border shadow-sm">
-              <Ionicons name="heart-outline" size={20} color={palette.foreground} />
             </TouchableOpacity>
           </View>
         </View>
@@ -443,16 +425,16 @@ export default function ProductDetailScreen() {
           {product.product_variants && product.product_variants.length > 0 && (
             <View className="gap-3">
               <View className="flex-row justify-between items-end">
-                <Text className="text-foreground font-bold text-lg">Select Variant</Text>
-                {selectedVariant && (
+                <Text className="text-foreground font-bold text-lg">Variant</Text>
+                {focusedVariant && (
                   <Text className="text-muted-foreground text-sm font-medium">
-                    Stock: {selectedVariant.stock}
+                    {focusedVariant.stock === 0 ? 'Out of stock' : `Stock: ${focusedVariant.stock}`}
                   </Text>
                 )}
               </View>
               <View className="flex-row flex-wrap gap-2.5">
                 {product.product_variants.map((variant) => {
-                  const isSelected = selectedVariant?.variantId === variant.variantId;
+                  const isSelected = focusedVariant?.variantId === variant.variantId;
                   const outOfStock = variant.stock === 0;
                   const variantStyle = isSelected
                     ? {
@@ -471,11 +453,12 @@ export default function ProductDetailScreen() {
                         borderColor: palette.border,
                         opacity: 1,
                       };
+
                   return (
                     <TouchableOpacity
                       key={variant.variantId}
-                      onPress={() => !outOfStock && setSelectedVariant(variant)}
-                      activeOpacity={outOfStock ? 1 : 0.7}
+                      onPress={() => setFocusedVariantId(variant.variantId)}
+                      activeOpacity={0.85}
                       className="relative px-5 py-3 rounded-2xl border-2 overflow-hidden"
                       style={variantStyle}
                     >
@@ -523,6 +506,8 @@ export default function ProductDetailScreen() {
             initials={orgInitials}
             logoUrl={orgLogoUrl}
             iconColor={palette.mutedForeground}
+            totalProducts={organizationStats?.totalProducts}
+            avgRating={organizationStats?.avgRating}
             onVisitOrg={handleVisitOrg}
           />
 
@@ -563,7 +548,7 @@ export default function ProductDetailScreen() {
 
       {/* Action Footer */}
       <View 
-        className="absolute bottom-0 left-0 right-0 px-5 pt-4 pb-8 border-t shadow-2xl"
+        className="absolute bottom-0 left-0 right-0 z-50 px-5 pt-4 pb-8 border-t shadow-2xl"
         style={{
           borderTopLeftRadius: 32,
           borderTopRightRadius: 32,
@@ -572,9 +557,11 @@ export default function ProductDetailScreen() {
         }}
       >
         <View className="flex-row gap-4 items-center">
-          <TouchableOpacity className="w-14 h-14 bg-muted items-center justify-center rounded-2xl border border-border">
-            <Ionicons name="cart-outline" size={24} color={palette.foreground} />
-          </TouchableOpacity>
+          <CartIconButton
+            count={cartCount}
+            iconColor={palette.foreground}
+            onPress={() => Alert.alert('Cart', 'Cart page is coming soon.')}
+          />
 
           <TouchableOpacity
             onPress={handleChatOrg}
@@ -584,27 +571,96 @@ export default function ProductDetailScreen() {
           </TouchableOpacity>
           
           <TouchableOpacity
+            onPress={isQuantityDrawerVisible ? handleConfirmAddToCart : handleAddToCart}
             activeOpacity={0.9}
             className="flex-1 h-14 rounded-2xl items-center justify-center shadow-lg"
             style={{
-              backgroundColor: selectedVariant?.stock === 0 ? palette.muted : palette.primary,
+              backgroundColor:
+                noVariantStock
+                  ? palette.muted
+                  : palette.primary,
             }}
-            disabled={selectedVariant?.stock === 0}
+            disabled={
+              noVariantStock || isAddingToCart
+            }
           >
             <Text
               className="font-black text-base uppercase tracking-widest"
               style={{
                 color:
-                  selectedVariant?.stock === 0
+                  noVariantStock
                     ? palette.mutedForeground
                     : palette.primaryForeground,
               }}
             >
-              {selectedVariant?.stock === 0 ? 'Sold Out' : 'Add to Cart'}
+              {noVariantStock
+                ? 'Sold Out'
+                : isAddingToCart
+                ? 'Adding...'
+                : isQuantityDrawerVisible
+                ? 'Confirm'
+                : 'Add to Cart'}
             </Text>
           </TouchableOpacity>
         </View>
       </View>
+
+      {isQuantityDrawerVisible && (
+        <View className="absolute inset-0 z-40">
+          <TouchableOpacity
+            activeOpacity={1}
+            onPress={handleCloseQuantityDrawer}
+            className="absolute left-0 right-0 top-0 bg-black/40"
+            style={{ bottom: 0 }}
+          />
+          <View
+            className="absolute left-0 right-0 rounded-t-[36px] bg-background border border-border p-5 pb-8"
+            style={{ bottom: 0, paddingBottom: 120 }}
+          >
+            <Text className="text-foreground font-bold text-lg">Add to Cart</Text>
+            <Text className="text-foreground text-sm font-semibold mt-4 mb-2">Select Variant</Text>
+            <View className="gap-2">
+              {product.product_variants.map((variant) => {
+                const selected = draftVariantId === variant.variantId;
+                const outOfStock = variant.stock === 0;
+                return (
+                  <TouchableOpacity
+                    key={variant.variantId}
+                    onPress={() => !outOfStock && setDraftVariantId(variant.variantId)}
+                    activeOpacity={outOfStock ? 1 : 0.85}
+                    className={`rounded-xl border px-4 py-3 ${
+                      selected ? 'border-primary bg-primary/10' : 'border-border bg-background'
+                    } ${outOfStock ? 'opacity-60' : ''}`}
+                  >
+                    <View className="flex-row items-center justify-between">
+                      <Text className="text-foreground font-semibold">{variant.name}</Text>
+                      <Text className="text-muted-foreground text-xs">
+                        {outOfStock ? 'Out of stock' : `Stock: ${variant.stock}`}
+                      </Text>
+                    </View>
+                    <Text className="text-primary text-sm font-bold mt-1">{formattedPrice(variant.price)}</Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
+            <Text className="text-muted-foreground text-sm mt-1 mb-4">
+              {product.product_variants.find((variant) => variant.variantId === draftVariantId)
+                ? `Available stock: ${
+                    product.product_variants.find((variant) => variant.variantId === draftVariantId)?.stock
+                  }`
+                : 'Set quantity to add to cart.'}
+            </Text>
+            <TextInput
+              value={quantityInput}
+              onChangeText={(value) => setQuantityInput(value.replace(/[^0-9]/g, ''))}
+              keyboardType="number-pad"
+              className="h-12 rounded-xl border border-border bg-background px-3 text-foreground"
+              placeholder="Quantity"
+              placeholderTextColor={palette.mutedForeground}
+            />
+          </View>
+        </View>
+      )}
     </View>
   );
 }
