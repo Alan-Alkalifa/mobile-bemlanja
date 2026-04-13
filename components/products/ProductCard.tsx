@@ -6,6 +6,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useColorScheme } from 'nativewind';
 import { Product } from '../../types/product';
 import { getProductImageUrl } from '../../utils/images';
+import { Skeleton } from '../ui/Skeleton';
 
 interface ProductCardProps {
   product: Product;
@@ -75,5 +76,23 @@ export function ProductCard({ product }: ProductCardProps) {
         )}
       </View>
     </TouchableOpacity>
+  );
+}
+
+export function ProductCardSkeleton() {
+  return (
+    <View className="bg-background w-[48%] mb-4 rounded-2xl overflow-hidden border border-border">
+      <Skeleton className="w-full h-40 rounded-none" />
+      <View className="p-3 gap-2">
+        <Skeleton className="h-4 w-5/6" />
+        <Skeleton className="h-3 w-full" />
+        <Skeleton className="h-4 w-2/5 mt-1" />
+        <View className="flex-row items-center gap-1 mt-1">
+          <Skeleton className="h-3 w-3 rounded-full" />
+          <Skeleton className="h-3 w-8" />
+          <Skeleton className="h-3 w-10" />
+        </View>
+      </View>
+    </View>
   );
 }

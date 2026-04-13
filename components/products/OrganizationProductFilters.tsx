@@ -6,6 +6,7 @@ import {
   OrganizationCategoryOption,
   OrganizationProductFilters as OrganizationProductFiltersState,
 } from '../../hooks/useOrganizationProducts';
+import { Skeleton } from '../ui/Skeleton';
 
 interface OrganizationProductFiltersProps {
   categories: OrganizationCategoryOption[];
@@ -113,8 +114,8 @@ export function OrganizationProductFilters({
         animationType="slide"
         onRequestClose={() => setDrawerVisible(false)}
       >
-        <View className="flex-1 justify-end" style={{ backgroundColor: palette.overlay }}>
-          <View className="bg-background rounded-t-3xl p-5 border-t border-border">
+        <View className="flex-1 justify-end">
+          <View className="bg-background rounded-t-[36px] p-5 border border-border">
             <View className="flex-row items-center justify-between mb-4">
               <Text className="text-foreground text-lg font-bold">Filter Products</Text>
               <TouchableOpacity onPress={() => setDrawerVisible(false)} className="w-9 h-9 items-center justify-center">
@@ -196,6 +197,17 @@ export function OrganizationProductFilters({
           </View>
         </View>
       </Modal>
+    </View>
+  );
+}
+
+export function OrganizationProductFiltersSkeleton() {
+  return (
+    <View className="px-5 mb-6">
+      <View className="flex-row items-center gap-2">
+        <Skeleton className="flex-1 h-11 rounded-xl" />
+        <Skeleton className="h-11 w-24 rounded-xl" />
+      </View>
     </View>
   );
 }

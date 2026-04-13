@@ -2,6 +2,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { Image } from 'expo-image';
 import React from 'react';
 import { Text, TouchableOpacity, View } from 'react-native';
+import { Skeleton } from '../ui/Skeleton';
 
 interface ProductOrgCardProps {
   orgName: string;
@@ -95,6 +96,25 @@ export function ProductOrgCard({
           <Text className="text-primary-foreground text-sm font-semibold">Visit</Text>
         </TouchableOpacity>
       </View>
+    </View>
+  );
+}
+
+export function ProductOrgCardSkeleton() {
+  return (
+    <View className="border border-border rounded-2xl bg-muted/30 p-4">
+      <View className="flex-row items-start gap-3">
+        <Skeleton className="w-12 h-12 rounded-full" />
+        <View className="flex-1 gap-2">
+          <Skeleton className="h-5 w-2/3" />
+          <Skeleton className="h-4 w-1/2" />
+          <View className="flex-row gap-3">
+            <Skeleton className="h-4 w-24" />
+            <Skeleton className="h-4 w-14" />
+          </View>
+        </View>
+      </View>
+      <Skeleton className="h-11 w-full rounded-xl mt-4" />
     </View>
   );
 }

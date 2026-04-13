@@ -2,9 +2,8 @@ import { useColorScheme } from 'nativewind';
 import React, { ReactElement } from 'react';
 import { ActivityIndicator, FlatList, Text, TouchableOpacity, View } from 'react-native';
 import { useOrganizationProducts } from '../../hooks/useOrganizationProducts';
-import { Skeleton } from '../ui/Skeleton';
-import { OrganizationProductFilters } from './OrganizationProductFilters';
-import { ProductCard } from './ProductCard';
+import { OrganizationProductFilters, OrganizationProductFiltersSkeleton } from './OrganizationProductFilters';
+import { ProductCard, ProductCardSkeleton } from './ProductCard';
 
 interface OrganizationProductsSectionProps {
   orgId: string;
@@ -53,20 +52,14 @@ export function OrganizationProductsSection({
   if (loading && products.length === 0) {
     return (
       <View>
-        {sectionHeader}
+        <View>
+          {listHeaderComponent}
+          <OrganizationProductFiltersSkeleton />
+          {!!title && <Text className="text-foreground font-bold text-lg mt-6 mb-3 px-5">{title}</Text>}
+        </View>
         <View className="flex-row flex-wrap justify-between px-5">
           {Array.from({ length: 4 }).map((_, index) => (
-            <View
-              key={`org-product-skeleton-${index}`}
-              className="w-[48%] mb-4 rounded-2xl overflow-hidden border border-border bg-background"
-            >
-              <Skeleton className="w-full h-40 rounded-none" />
-              <View className="p-3 gap-2">
-                <Skeleton className="h-4 w-5/6" />
-                <Skeleton className="h-3 w-full" />
-                <Skeleton className="h-4 w-2/5 mt-1" />
-              </View>
-            </View>
+            <ProductCardSkeleton key={`org-product-skeleton-${index}`} />
           ))}
         </View>
         <View className="py-2 items-center">

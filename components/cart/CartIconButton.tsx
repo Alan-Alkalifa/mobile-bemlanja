@@ -1,14 +1,20 @@
 import { Ionicons } from '@expo/vector-icons';
 import React from 'react';
 import { Text, TouchableOpacity, View } from 'react-native';
+import { Skeleton } from '../ui/Skeleton';
 
 interface CartIconButtonProps {
   count: number;
   iconColor: string;
   onPress: () => void;
+  isLoading?: boolean;
 }
 
-export function CartIconButton({ count, iconColor, onPress }: CartIconButtonProps) {
+export function CartIconButton({ count, iconColor, onPress, isLoading = false }: CartIconButtonProps) {
+  if (isLoading) {
+    return <Skeleton className="w-14 h-14 rounded-2xl" />;
+  }
+
   return (
     <TouchableOpacity
       onPress={onPress}

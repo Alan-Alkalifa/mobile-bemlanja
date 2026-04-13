@@ -2,12 +2,15 @@ import "../globals.css";
 import { Stack } from "expo-router";
 import { AuthProvider } from "../contexts/AuthProvider";
 import { CartProvider } from "../contexts/CartProvider";
+import { CartSelectionProvider } from "../contexts/CartSelectionProvider";
 
 export default function RootLayout() {
   return (
     <AuthProvider>
       <CartProvider>
-        <Stack screenOptions={{ headerShown: false }} />
+        <CartSelectionProvider>
+          <Stack screenOptions={{ headerShown: false }} />
+        </CartSelectionProvider>
       </CartProvider>
     </AuthProvider>
   );

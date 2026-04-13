@@ -4,6 +4,7 @@ import React from 'react';
 import { Modal, Pressable, ScrollView, Text, TouchableOpacity, View } from 'react-native';
 import { ProductReview } from '../../types/product';
 import { getProductImageUrl } from '../../utils/images';
+import { Skeleton } from '../ui/Skeleton';
 
 interface ProductReviewCardProps {
   review: ProductReview;
@@ -118,6 +119,34 @@ export function ProductReviewCard({ review, warningColor }: ProductReviewCardPro
           </TouchableOpacity> */}
         </View>
       </Modal>
+    </View>
+  );
+}
+
+export function ProductReviewCardSkeleton() {
+  return (
+    <View className="bg-muted/40 border border-border/50 rounded-2xl p-5 gap-3">
+      <View className="flex-row items-start justify-between">
+        <View className="flex-row items-center gap-3 flex-1">
+          <Skeleton className="w-9 h-9 rounded-full" />
+          <View className="flex-1 gap-1.5">
+            <Skeleton className="h-4 w-28" />
+            <View className="flex-row gap-1">
+              {Array.from({ length: 5 }).map((_, idx) => (
+                <Skeleton key={`review-star-skeleton-${idx}`} className="h-3 w-3 rounded-full" />
+              ))}
+            </View>
+          </View>
+        </View>
+        <Skeleton className="h-3 w-16" />
+      </View>
+      <Skeleton className="h-3 w-full" />
+      <Skeleton className="h-3 w-11/12" />
+      <Skeleton className="h-3 w-4/5" />
+      <View className="flex-row gap-2">
+        <Skeleton className="w-[72px] h-[72px] rounded-xl" />
+        <Skeleton className="w-[72px] h-[72px] rounded-xl" />
+      </View>
     </View>
   );
 }

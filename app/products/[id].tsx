@@ -17,9 +17,12 @@ import {
   View,
 } from 'react-native';
 import { CartIconButton } from '../../components/cart/CartIconButton';
-import { OrganizationCouponsSection } from '../../components/products/OrganizationCouponsSection';
-import { ProductOrgCard } from '../../components/products/ProductOrgCard';
-import { ProductReviewCard } from '../../components/products/ProductReviewCard';
+import {
+  OrganizationCouponsSection,
+  OrganizationCouponsSectionSkeleton,
+} from '../../components/products/OrganizationCouponsSection';
+import { ProductOrgCard, ProductOrgCardSkeleton } from '../../components/products/ProductOrgCard';
+import { ProductReviewCard, ProductReviewCardSkeleton } from '../../components/products/ProductReviewCard';
 import { Skeleton } from '../../components/ui/Skeleton';
 import { useAuth } from '../../contexts/AuthProvider';
 import { useCart } from '../../contexts/CartProvider';
@@ -271,6 +274,12 @@ export default function ProductDetailScreen() {
   if (loading) {
     return (
       <View className="flex-1 bg-background">
+        <View className="absolute top-0 left-0 right-0 z-20 px-4 pt-12 pb-4">
+          <View className="flex-row justify-between items-center">
+            <Skeleton className="w-11 h-11 rounded-full" />
+            <Skeleton className="w-11 h-11 rounded-full" />
+          </View>
+        </View>
         <Skeleton className="w-full rounded-none" style={{ height: IMAGE_HEIGHT }} />
         <View className="px-5 pt-6 gap-5">
           <View className="gap-2">
@@ -286,15 +295,22 @@ export default function ProductDetailScreen() {
               <Skeleton className="h-12 w-24 rounded-2xl" />
             </View>
           </View>
+          <OrganizationCouponsSectionSkeleton />
           <View className="gap-2">
             <Skeleton className="h-5 w-44" />
             <Skeleton className="h-4 w-full" />
             <Skeleton className="h-4 w-11/12" />
             <Skeleton className="h-4 w-4/5" />
           </View>
+          <ProductOrgCardSkeleton />
+          <View className="gap-3">
+            <Skeleton className="h-5 w-36" />
+            <ProductReviewCardSkeleton />
+          </View>
         </View>
         <View className="absolute bottom-0 left-0 right-0 px-5 pt-4 pb-8 border-t border-border bg-background">
           <View className="flex-row gap-4">
+            <CartIconButton count={0} iconColor={palette.foreground} onPress={() => null} isLoading />
             <Skeleton className="w-14 h-14 rounded-2xl" />
             <Skeleton className="flex-1 h-14 rounded-2xl" />
           </View>
@@ -560,7 +576,7 @@ export default function ProductDetailScreen() {
           <CartIconButton
             count={cartCount}
             iconColor={palette.foreground}
-            onPress={() => Alert.alert('Cart', 'Cart page is coming soon.')}
+            onPress={() => router.push('/cart')}
           />
 
           <TouchableOpacity
@@ -617,9 +633,13 @@ export default function ProductDetailScreen() {
             className="absolute left-0 right-0 rounded-t-[36px] bg-background border border-border p-5 pb-8"
             style={{ bottom: 0, paddingBottom: 120 }}
           >
-            <Text className="text-foreground font-bold text-lg">Add to Cart</Text>
-            <Text className="text-foreground text-sm font-semibold mt-4 mb-2">Select Variant</Text>
-            <View className="gap-2">
+            <Text className="text-foreground text-sm font-semibold mb-2">Select Variant</Text>
+            <ScrollView
+              className={product.product_variants.length > 3 ? 'max-h-[220px]' : ''}
+              showsVerticalScrollIndicator={product.product_variants.length > 3}
+              nestedScrollEnabled
+              contentContainerStyle={{ gap: 8 }}
+            >
               {product.product_variants.map((variant) => {
                 const selected = draftVariantId === variant.variantId;
                 const outOfStock = variant.stock === 0;
@@ -642,7 +662,7 @@ export default function ProductDetailScreen() {
                   </TouchableOpacity>
                 );
               })}
-            </View>
+            </ScrollView>
             <Text className="text-muted-foreground text-sm mt-1 mb-4">
               {product.product_variants.find((variant) => variant.variantId === draftVariantId)
                 ? `Available stock: ${

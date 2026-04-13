@@ -1,6 +1,7 @@
 import React from 'react';
 import { ScrollView, Text, View } from 'react-native';
 import { OrganizationCoupon } from '../../types/product';
+import { Skeleton } from '../ui/Skeleton';
 
 interface OrganizationCouponsSectionProps {
   coupons: OrganizationCoupon[];
@@ -53,6 +54,31 @@ export function OrganizationCouponsSection({ coupons }: OrganizationCouponsSecti
                 Minimum purchase {formatCurrency(coupon.min_purchase)}
               </Text>
               <Text className="text-muted-foreground text-sm">{formatExpiryDate(coupon.expires_at)}</Text>
+            </View>
+          ))}
+        </View>
+      </ScrollView>
+    </View>
+  );
+}
+
+export function OrganizationCouponsSectionSkeleton() {
+  return (
+    <View className="gap-3">
+      <Skeleton className="h-5 w-40" />
+      <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+        <View className="flex-row gap-3">
+          {Array.from({ length: 2 }).map((_, index) => (
+            <View
+              key={`coupon-skeleton-${index}`}
+              className="border border-border rounded-2xl bg-muted/30 p-4 gap-2 w-72"
+            >
+              <View className="flex-row items-center justify-between">
+                <Skeleton className="h-4 w-20" />
+                <Skeleton className="h-4 w-16" />
+              </View>
+              <Skeleton className="h-3 w-5/6" />
+              <Skeleton className="h-3 w-3/4" />
             </View>
           ))}
         </View>

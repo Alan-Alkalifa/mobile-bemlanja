@@ -4,7 +4,9 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useColorScheme } from 'nativewind';
 import React, { useMemo } from 'react';
 import { Alert, Platform, Share, Text, TouchableOpacity, View } from 'react-native';
+import { OrganizationProductFiltersSkeleton } from '../../components/products/OrganizationProductFilters';
 import { OrganizationProductsSection } from '../../components/products/OrganizationProductsSection';
+import { ProductCardSkeleton } from '../../components/products/ProductCard';
 import { Skeleton } from '../../components/ui/Skeleton';
 import { useOrganizationDetail } from '../../hooks/useOrganizationDetail';
 
@@ -76,8 +78,14 @@ export default function OrganizationDetailScreen() {
   if (loading) {
     return (
       <View className="flex-1 bg-background">
+        <View className="absolute top-0 left-0 right-0 z-20 px-4 pt-12 pb-4">
+          <View className="flex-row items-center justify-between">
+            <Skeleton className="w-11 h-11 rounded-full" />
+            <Skeleton className="w-11 h-11 rounded-full" />
+          </View>
+        </View>
         <Skeleton className="w-full rounded-none" style={{ height: HEADER_HEIGHT }} />
-        <View className="px-5 pt-6 gap-4">
+        <View className="px-5 pt-6 gap-5">
           <View className="flex-row items-center gap-4">
             <Skeleton className="w-20 h-20 rounded-full" />
             <View className="flex-1 gap-2">
@@ -85,8 +93,16 @@ export default function OrganizationDetailScreen() {
               <Skeleton className="h-4 w-2/5" />
             </View>
           </View>
-          <Skeleton className="h-20 w-full rounded-2xl" />
+          <View className="gap-2">
+            <Skeleton className="h-4 w-1/2" />
+            <Skeleton className="h-4 w-1/3" />
+          </View>
           <Skeleton className="h-28 w-full rounded-2xl" />
+        </View>
+        <OrganizationProductFiltersSkeleton />
+        <View className="px-5 flex-row flex-wrap justify-between">
+          <ProductCardSkeleton />
+          <ProductCardSkeleton />
         </View>
       </View>
     );
