@@ -1,8 +1,8 @@
-import "../globals.css";
 import { Stack } from "expo-router";
 import { AuthProvider } from "../contexts/AuthProvider";
 import { CartProvider } from "../contexts/CartProvider";
 import { CartSelectionProvider } from "../contexts/CartSelectionProvider";
+import "../globals.css";
 
 export default function RootLayout() {
   return (
